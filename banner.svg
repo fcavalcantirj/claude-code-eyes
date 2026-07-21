@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1320"/>
+      <stop offset="45%" stop-color="#0b0f18"/>
+      <stop offset="100%" stop-color="#05070b"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.38"/>
+      <stop offset="55%" stop-color="#0b4a63" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#05070a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#8fb7d6" opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <!-- frame -->
+  <rect x="2" y="2" width="1276" height="316" rx="16" fill="url(#bg)" stroke="#1b2431" stroke-width="2"/>
+  <rect x="2" y="2" width="1276" height="316" rx="16" fill="url(#grid)"/>
+
+  <!-- viewfinder corner brackets -->
+  <g stroke="#38bdf8" stroke-width="2.5" opacity="0.55" fill="none" stroke-linecap="round">
+    <path d="M28 30 h56 M30 28 v56"/>
+    <path d="M1252 30 h-56 M1250 28 v56"/>
+    <path d="M28 290 h56 M30 292 v-56"/>
+    <path d="M1252 290 h-56 M1250 292 v-56"/>
+  </g>
+
+  <!-- REC indicator -->
+  <g>
+    <circle cx="1150" cy="42" r="6" fill="#ff5f56" filter="url(#glow)"/>
+    <text x="1166" y="47" fill="#ff8b84" font-size="15" font-weight="700" letter-spacing="2">REC</text>
+  </g>
+
+  <!-- ==== EYE / APERTURE ==== -->
+  <g>
+    <circle cx="200" cy="160" r="150" fill="url(#halo)"/>
+    <!-- eyelid almond -->
+    <path d="M70 160 C130 92 270 92 330 160 C270 228 130 228 70 160 Z"
+          fill="#0a1120" stroke="#38bdf8" stroke-width="3" filter="url(#glow)"/>
+    <!-- iris glow + rings -->
+    <circle cx="200" cy="160" r="66" fill="url(#iris)"/>
+    <circle cx="200" cy="160" r="72" fill="none" stroke="#38bdf8" stroke-width="1" opacity="0.35" stroke-dasharray="2 6"/>
+    <circle cx="200" cy="160" r="66" fill="none" stroke="#7dd3fc" stroke-width="2.2"/>
+    <!-- aperture blades (spokes) -->
+    <g stroke="#38bdf8" stroke-width="1.6" opacity="0.65" stroke-linecap="round">
+      <line x1="228.6" y1="176.5" x2="254.6" y2="191.5"/>
+      <line x1="200"   y1="193"   x2="200"   y2="223"/>
+      <line x1="171.4" y1="176.5" x2="145.4" y2="191.5"/>
+      <line x1="171.4" y1="143.5" x2="145.4" y2="128.5"/>
+      <line x1="200"   y1="127"   x2="200"   y2="97"/>
+      <line x1="228.6" y1="143.5" x2="254.6" y2="128.5"/>
+    </g>
+    <!-- aperture opening -->
+    <polygon points="238,160 219,192.9 181,192.9 162,160 181,127.1 219,127.1"
+             fill="#05080d" stroke="#7dd3fc" stroke-width="1.5"/>
+    <circle cx="200" cy="160" r="13" fill="#04070c"/>
+    <circle cx="192" cy="152" r="4" fill="#d6f4ff" opacity="0.9"/>
+    <!-- focus box -->
+    <g stroke="#f5a623" stroke-width="2.4" opacity="0.85" fill="none" stroke-linecap="round">
+      <path d="M96 66 h30 M96 66 v30"/>
+      <path d="M304 66 h-30 M304 66 v30"/>
+      <path d="M96 254 h30 M96 254 v-30"/>
+      <path d="M304 254 h-30 M304 254 v-30"/>
+      <path d="M200 66 v12 M200 254 v-12 M96 160 h12 M304 160 h-12" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- ==== WORDMARK ==== -->
+  <text x="378" y="150" font-size="60" font-weight="700" letter-spacing="-1">
+    <tspan fill="#e6edf3">claude-code-</tspan><tspan fill="#38bdf8" filter="url(#glow)">eyes</tspan>
+  </text>
+  <rect x="382" y="168" width="150" height="3" rx="1.5" fill="#38bdf8" opacity="0.8"/>
+  <rect x="536" y="168" width="70" height="3" rx="1.5" fill="#f5a623" opacity="0.8"/>
+
+  <text x="382" y="204" font-size="23" fill="#9aa7b4">Give Claude Code eyes for the real world.</text>
+  <text x="382" y="236" font-size="16" fill="#6e7c8a">Catch what no test can &#183; verify wiring before power-on.</text>
+  <text x="382" y="270" font-size="15" fill="#4d5a68" letter-spacing="0.5">IP&#8202;Webcam &#183; camera-streamer &#183; any snapshot URL</text>
+
+  <!-- easter egg: the bug only eyes caught -->
+  <text x="1018" y="236" font-size="11" fill="#56606a">&#9666; the bug only eyes caught</text>
+  <g>
+    <rect x="1018" y="244" width="214" height="52" rx="6" fill="#04120a" stroke="#16432680" stroke-width="1.5"/>
+    <text x="1034" y="280" font-size="26" fill="#3fb950" letter-spacing="1">~1h23min</text>
+  </g>
+
+  <!-- HUD footer -->
+  <text x="40" y="298" font-size="13" fill="#5a6672" letter-spacing="1">CAM_01 &#183; /shot.jpg &#183; image/jpeg &#183; snapshot</text>
+</svg>

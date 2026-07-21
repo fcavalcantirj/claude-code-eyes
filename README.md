@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="banner.svg" alt="claude-code-eyes — give Claude Code eyes for the real world" width="100%">
+</p>
+
 # claude-code-eyes
 
 **A Claude Code skill that lets Claude *look* at the real world through a camera** —
