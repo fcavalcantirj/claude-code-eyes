@@ -54,10 +54,32 @@ git clone https://github.com/fcavalcantirj/claude-code-eyes.git \
   /path/to/your/project/.claude/skills/claude-code-eyes
 ```
 
-Or just copy `SKILL.md` + `snap.sh` into a `claude-code-eyes/` folder under either
+Or just copy the skill's files into a `claude-code-eyes/` folder under either
 `skills/` location. That's the whole skill.
 
-Then set a camera URL (above) and ask Claude to look:
+### One-command setup
+
+From the installed skill folder, run the setup helper — it writes your camera
+config and grabs a test frame, so there's nothing to hand-edit:
+
+```bash
+bash ~/.claude/skills/claude-code-eyes/setup.sh
+```
+
+It asks for your camera URL — or, if you leave it blank, **scans your LAN for an
+IP Webcam** and lets you pick one. Prefer non-interactive?
+
+```bash
+# writes the config and verifies it in one shot (add --auth user:pass if needed)
+bash ~/.claude/skills/claude-code-eyes/setup.sh --url http://192.168.0.42:8080 --type ipwebcam
+```
+
+Other flags: `--scan` (just list IP Webcams on the LAN), `--local` (write
+`./.cce.env` for this project instead of the global config), `--show` (where config
+lives). You can still set the env vars or edit the config by hand — see
+[Configuration](#configuration--precedence).
+
+Then ask Claude to look:
 
 > "Are you seeing this? Is the yellow wire in G4?"
 > "Look at the display — does it say `~1h23min` in full?"
