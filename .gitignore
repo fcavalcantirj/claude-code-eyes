@@ -1,0 +1,15 @@
+# Secrets & local camera config — never commit these
+.env
+.env.*
+.cce.env
+*.token
+secrets*
+
+# Captured frames (snap.sh writes to $TMPDIR/claude-code-eyes, but guard anyway)
+frame-*.jpg
+frame-*.jpeg
+frame-*.png
+frames/
+
+# OS / editor cruft
+.DS_Store

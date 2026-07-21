@@ -1,0 +1,14 @@
+[
+  { "query": "Are you seeing this? Is the yellow jumper in the right pin?", "should_trigger": true },
+  { "query": "olha isso, acho que inverti a polaridade do JST", "should_trigger": true },
+  { "query": "Look at the display and tell me if it shows the full countdown or if any characters are cut off", "should_trigger": true },
+  { "query": "Watch this — I'm about to press the button, tell me what changes on the panel", "should_trigger": true },
+  { "query": "Can you check the camera and confirm the LED strip actually lit up?", "should_trigger": true },
+  { "query": "Before I power it on, does this wiring match the table? Any 5V on a 3.3V pin?", "should_trigger": true },
+  { "query": "What's this part on the breadboard? Zoom in if you can read the label.", "should_trigger": true },
+  { "query": "The screen looks blank — is it stale or is the render actually broken?", "should_trigger": true },
+  { "query": "Refactor this function to use async/await instead of callbacks", "should_trigger": false },
+  { "query": "Why is my unit test failing with a null pointer exception?", "should_trigger": false },
+  { "query": "Summarize the changes in the last three git commits", "should_trigger": false },
+  { "query": "What's the difference between a mutex and a semaphore?", "should_trigger": false }
+]
