@@ -4,14 +4,28 @@
 
 # claude-code-eyes
 
-**A Claude Code skill that lets Claude *look* at the real world through a camera** —
-your desk, a breadboard, a display panel, a rack of wires — and answer from what it
-actually sees.
+**Give Claude Code eyes.** A camera skill so Claude doesn't just *read about* your
+hardware — it **sees** it and drives the whole loop: write the firmware, flash the
+board, connect the API, look at the display, fix the UI, reflash — **verifying its
+own work where it actually lives: on the glass.**
 
-Most of what Claude works with is text: code, logs, API responses. But some
-outputs live where no test can reach them. A font that silently drops characters.
-A wire in the wrong hole. A number clipped at the edge of an LCD. `claude-code-eyes`
-grabs the current camera frame so Claude can read it like any other file.
+> **Built by a quadriplegic dev who watched Claude Code wire up an ESP32 and fix its on-screen UI — by _looking_.** This skill is how Claude sees.
+
+Most of what Claude works with is text: code, logs, API responses. But some outputs
+live where no test can reach them — a font that silently drops characters, a wire in
+the wrong hole, a number clipped at the edge of an LCD. `claude-code-eyes` grabs the
+current camera frame so Claude can read it like any other file — then **act on it**:
+edit, reflash, and look again until the real thing is right.
+
+## See it in action
+
+<p align="center">
+  <img src="demo.gif" alt="Claude Code flashing an ESP32 and fixing its on-screen UI, verified live through the camera" width="360">
+</p>
+
+▶️ **[Watch the full 25-second demo](https://drive.google.com/file/d/1z-ocjd7T9SdrBK2IVM4ku4vXrFHbrH6i/view)** — Claude drives the build from the laptop, the board runs the live countdown, and the phone (IP Webcam) is the eye Claude looks through.
+
+> 🤯 **What Claude Code pulled off here** — from a prompt, my home Wi-Fi, and the API it would use, and with **zero hardware help from me**: it designed the board → relay → API architecture, wrote the ESP32 firmware *and* a Go relay service, flashed the board, shipped **5 clean OTA updates**, wrote its own tests (and caught two of its own that were testing nothing) — and **found and fixed a UI bug on the display that every green test missed, by *looking* at the panel through this camera.** My whole job: set the goal, plug in the cable, press the button, aim the phone. Claude did the engineering.
 
 ---
 
@@ -191,19 +205,32 @@ paths are printed one per line.
 
 ## Why this exists
 
-During a hardware build, a 48-pixel clock font on a small display contained only
-the glyphs `0-9 : . - a p m`. Handed the string `~1h23min`, it rendered **`1 24m`**
-on the panel — the `~`, `h`, `i`, and `n` were dropped **silently**. Every
-automated layer was green, and every one of them was *right*: the string was
-composed correctly, fetched correctly, and the test asserting "these bytes are
-ASCII" passed — because the bytes genuinely were ASCII. The narrow thing was the
-font's glyph coverage, which lives on the glass and nowhere else.
+I'm a quadriplegic developer. I'm fluent in code, and I knew **nothing** about
+electronics or IoT — I'd never wired a board in my life. So I ran an experiment:
+could Claude Code connect an ESP32 to my system and just… do the whole thing?
 
-The only instrument that could see it was a camera pointed at the panel. That's
-what this skill is: a way to give Claude eyes for the outputs that don't fit in a
-terminal — and, just as important, the discipline to **know what an instrument can
-and cannot see** (a blank frame is not a "no" until the camera is proven to be
-looking).
+It did. Given a goal, my Wi-Fi, and the API it would talk to, Claude designed the
+architecture, wrote the firmware and a relay service, flashed the board, ran OTA
+updates, and wrote its own tests. The part I didn't expect: it **fixed the UI on
+the little display**. A 48-pixel clock font was silently dropping characters —
+handed `~1h23min` it rendered **`1 24m`** on the panel — and every automated test
+stayed green, because the bytes really *were* ASCII; the narrow thing was the
+font's glyph coverage, which lives on the glass and nowhere else. Claude only
+caught it by *looking* at the panel.
+
+And that's where the friction was. Before this skill, "let Claude see the board"
+meant a soul-crushing manual loop: screenshot the display → send it to myself over
+WhatsApp → download it → paste it into Claude Code. Every. Single. Iteration.
+`claude-code-eyes` deletes that loop — Claude grabs the frame itself, reads it,
+fixes the code, reflashes, and looks again.
+
+> **"This is fucking awesome. And yeah — I'm a quad developer."**
+
+*Honest footnote: I still set the spec, plugged in the cable, and pressed the
+button — and on one layout bug it was my own eyes that caught what Claude had
+already marked "pass." Eyes help; they're not infallible. That humility is baked
+into the skill: it refuses a blurry frame, and it knows what an instrument can and
+cannot see — a blank frame is not a "no" until the camera is proven to be looking.*
 
 ---
 
