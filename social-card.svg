@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1320"/>
+      <stop offset="45%" stop-color="#0b0f18"/>
+      <stop offset="100%" stop-color="#05070b"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.38"/>
+      <stop offset="55%" stop-color="#0b4a63" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#05070a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#8fb7d6" opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect x="2" y="2" width="1276" height="636" rx="20" fill="url(#bg)" stroke="#1b2431" stroke-width="2"/>
+  <rect x="2" y="2" width="1276" height="636" rx="20" fill="url(#grid)"/>
+
+  <g stroke="#38bdf8" stroke-width="2.5" opacity="0.5" fill="none" stroke-linecap="round">
+    <path d="M36 42 h60 M40 38 v60"/>
+    <path d="M1244 42 h-60 M1240 38 v60"/>
+    <path d="M36 598 h60 M40 602 v-60"/>
+    <path d="M1244 598 h-60 M1240 602 v-60"/>
+  </g>
+
+  <g><circle cx="1150" cy="62" r="7" fill="#ff5f56" filter="url(#glow)"/><text x="1168" y="68" fill="#ff8b84" font-size="18" font-weight="700" letter-spacing="2">REC</text></g>
+
+  <!-- aperture-eye (reused identity, transformed to center ~280,378) -->
+  <g transform="translate(20,170) scale(1.3)">
+    <circle cx="200" cy="160" r="150" fill="url(#halo)"/>
+    <path d="M70 160 C130 92 270 92 330 160 C270 228 130 228 70 160 Z" fill="#0a1120" stroke="#38bdf8" stroke-width="3" filter="url(#glow)"/>
+    <circle cx="200" cy="160" r="66" fill="url(#iris)"/>
+    <circle cx="200" cy="160" r="72" fill="none" stroke="#38bdf8" stroke-width="1" opacity="0.35" stroke-dasharray="2 6"/>
+    <circle cx="200" cy="160" r="66" fill="none" stroke="#7dd3fc" stroke-width="2.2"/>
+    <g stroke="#38bdf8" stroke-width="1.6" opacity="0.65" stroke-linecap="round">
+      <line x1="228.6" y1="176.5" x2="254.6" y2="191.5"/>
+      <line x1="200" y1="193" x2="200" y2="223"/>
+      <line x1="171.4" y1="176.5" x2="145.4" y2="191.5"/>
+      <line x1="171.4" y1="143.5" x2="145.4" y2="128.5"/>
+      <line x1="200" y1="127" x2="200" y2="97"/>
+      <line x1="228.6" y1="143.5" x2="254.6" y2="128.5"/>
+    </g>
+    <polygon points="238,160 219,192.9 181,192.9 162,160 181,127.1 219,127.1" fill="#05080d" stroke="#7dd3fc" stroke-width="1.5"/>
+    <circle cx="200" cy="160" r="13" fill="#04070c"/>
+    <circle cx="192" cy="152" r="4" fill="#d6f4ff" opacity="0.9"/>
+    <g stroke="#f5a623" stroke-width="2.4" opacity="0.85" fill="none" stroke-linecap="round">
+      <path d="M96 66 h30 M96 66 v30"/>
+      <path d="M304 66 h-30 M304 66 v30"/>
+      <path d="M96 254 h30 M96 254 v-30"/>
+      <path d="M304 254 h-30 M304 254 v-30"/>
+    </g>
+  </g>
+
+  <text x="470" y="212" font-size="70" font-weight="700" letter-spacing="-1"><tspan fill="#e6edf3">claude-code-</tspan><tspan fill="#38bdf8" filter="url(#glow)">eyes</tspan></text>
+  <rect x="474" y="234" width="176" height="4" rx="2" fill="#38bdf8" opacity="0.85"/>
+  <rect x="658" y="234" width="88" height="4" rx="2" fill="#f5a623" opacity="0.85"/>
+  <text x="474" y="284" font-size="26" fill="#9aa7b4">Eyes for Claude Code — the outputs no test can see.</text>
+
+  <text x="474" y="372" font-size="33" font-weight="700" fill="#e6edf3">Claude Code wired up an ESP32</text>
+  <text x="474" y="416" font-size="33" font-weight="700" fill="#e6edf3">and fixed its display — <tspan fill="#38bdf8">by looking.</tspan></text>
+  <text x="474" y="466" font-size="23" fill="#7dd3fc">Built by a quadriplegic developer.</text>
+
+  <text x="80" y="602" font-size="22" fill="#5a6672" letter-spacing="1">MIT · github.com/fcavalcantirj/claude-code-eyes</text>
+</svg>
