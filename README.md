@@ -267,6 +267,53 @@ prints the correct one for your camera, and `snap.sh` prints it on failure. Run
 > sandbox as a possibility. The deciding test: if your own terminal can reach the
 > camera and Claude cannot, it is the sandbox.
 
+### 1b. `set: pipefail: invalid option name` — CRLF line endings
+
+**Symptom:** it fails instantly, before ever touching the camera:
+
+```
+snap.sh: line 29: $'\r': command not found
+snap.sh: line 30: set: pipefail: invalid option name
+```
+
+The script has Windows (CRLF) line endings and bash chokes on the carriage
+returns. `git config core.autocrlf` defaults to `true` on Windows, so a clone can
+introduce this on its own — as can saving the file from a Windows editor.
+
+`snap.sh` cannot warn you about this itself: bash is already dead. `setup.sh`
+checks for it and says so. To fix a copy you already have:
+
+```bash
+perl -pi -e 's/\r$//' snap.sh        # or: sed -i'' -e 's/\r$//' snap.sh
+git config core.autocrlf input       # stop it coming back
+```
+
+This repo ships a `.gitattributes` pinning `*.sh` to `eol=lf`, so a fresh clone is
+safe.
+
+### 1c. Cloud or bridged sessions: no route to the LAN
+
+**Symptom:** a `403` whose headers name a proxy, e.g.
+`X-Proxy-Error: blocked-by-allowlist` — or a plain connection failure with no
+HTTP response at all.
+
+If Claude runs in a cloud session with a device bridge (Cowork and similar), your
+camera is on a network that session cannot reach. This is **not** the Claude Code
+Bash sandbox, and no local settings change opens it — the allowlist belongs to the
+bridge, not to you. `snap.sh` prints whatever the proxy says about itself so you
+can tell which system refused you.
+
+Two traps worth knowing:
+
+- **`no_proxy` does not accept CIDR.** `no_proxy=192.168.0.0/16` looks right and
+  silently does nothing — curl does not CIDR-match it.
+- Bypassing the proxy doesn't help if the container has no LAN route at all.
+
+**What works instead:** fetch the snapshot from a browser running on the LAN host
+(e.g. Claude in Chrome opening `http://<camera-ip>:8080/shot.jpg`), which bypasses
+the session's egress entirely. Confirmed in the field: full page text and small
+print were legible that way.
+
 ### 2. Frames written to `$TMPDIR` were unreadable
 
 **Symptom:** `snap.sh` prints a path, but `Read` cannot open it.

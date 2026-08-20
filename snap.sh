@@ -173,14 +173,42 @@ sandbox_fix() {                    # $1=host:port -- print the remedy that actua
   echo "  Inspect the active policy with /sandbox. https://code.claude.com/docs/en/sandboxing" >&2
 }
 
-diagnose() {                       # $1=curl exit status  $2=http status ("000" if none)
-  local rc="$1" code="$2" HP
+proxy_verdict() {                  # $1=header file -- echo the proxy's own reason, if any
+  [ -f "${1:-}" ] || return 1
+  grep -i -E '^(x-proxy-error|x-squid-error|proxy-agent|via|x-blocked-by):' "$1" 2>/dev/null \
+    | tr -d '\r' | head -3
+}
+
+diagnose() {                       # $1=curl exit  $2=http status ("000")  $3=header file
+  local rc="$1" code="$2" hdr="${3:-}" HP verdict
   HP="$(host_port "$ENDPOINT")"
-  if [ "$code" = "403" ] && proxy_set; then
-    echo "ERROR: request to $HP was refused with 403 by the proxy in front of this shell," >&2
-    echo "  which is how the Claude Code Bash sandbox blocks an address it does not allow." >&2
-    sandbox_fix "$HP"
-    echo "  (If $HP is already allowed, the camera itself returned the 403.)" >&2
+  if [ "$code" = "403" ]; then
+    echo "ERROR: $HP answered 403 Forbidden." >&2
+    verdict="$(proxy_verdict "$hdr" || true)"
+    if [ -n "$verdict" ]; then
+      echo "  The refusal came from a proxy, which identified itself:" >&2
+      printf '      %s\n' "$verdict" >&2
+    fi
+    if [ -n "$verdict" ] || proxy_set; then
+      # Several different systems produce an identical 403 here. Name them rather
+      # than assert one: a field report (2026-08-20) traced this exact shape to a
+      # cloud device-bridge egress proxy, NOT to Claude Code's sandbox.
+      echo "  A 403 in front of a camera usually means one of:" >&2
+      echo "    1. a cloud or bridged session's egress proxy (its allowlist is the host's," >&2
+      echo "       not yours -- a local settings change cannot open it), or" >&2
+      echo "    2. a corporate/system proxy, or" >&2
+      echo "    3. Claude Code's own Bash sandbox, if you run Claude Code locally, or" >&2
+      echo "    4. the camera itself rejecting the request." >&2
+      echo "  If (3) applies:" >&2
+      sandbox_fix "$HP"
+      echo "  If your session has no route to the LAN at all, no setting fixes it --" >&2
+      echo "  fetch the snapshot from a browser running on the LAN host instead." >&2
+    else
+      echo "  No proxy is configured for this shell, so this 403 came from the camera:" >&2
+      echo "  it is reachable but refused this request (type=$CCE_CAM_TYPE, url=$ENDPOINT)." >&2
+      echo "  Check the path for this backend, and whether the camera wants auth" >&2
+      echo "  (CCE_CAM_AUTH is $([ -n "${CCE_CAM_AUTH:-}" ] && echo set || echo unset))." >&2
+    fi
   elif [ "$code" = "401" ]; then
     echo "ERROR: $HP returned 401 Unauthorized." >&2
     echo "  The camera wants HTTP basic auth. Set CCE_CAM_AUTH=user:pass" >&2
@@ -205,10 +233,10 @@ diagnose() {                       # $1=curl exit status  $2=http status ("000" 
 # state back to the caller -- it prints its own diagnosis to stderr (which is NOT
 # captured) and returns non-zero. Only the captured path goes to stdout.
 grab_one() {                       # $1=path prefix; prints final path on success
-  local prefix="$1" tmp="$1.part" ext attempt=1 code rc
+  local prefix="$1" tmp="$1.part" hdr="$1.hdr" ext attempt=1 code rc
   while :; do
     # no -f: let curl report the status instead of collapsing every 4xx into exit 22
-    if code="$(curl -s -o "$tmp" -w '%{http_code}' --connect-timeout 4 --max-time 15 \
+    if code="$(curl -s -o "$tmp" -D "$hdr" -w '%{http_code}' --connect-timeout 4 --max-time 15 \
                     ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$ENDPOINT" 2>/dev/null)"; then
       rc=0
     else
@@ -220,7 +248,8 @@ grab_one() {                       # $1=path prefix; prints final path on succes
       attempt=$((attempt + 1)); sleep 1; continue
     fi
     rm -f "$tmp"
-    diagnose "$rc" "$code"
+    diagnose "$rc" "$code" "$hdr"
+    rm -f "$hdr"
     return 1
   done
   ext="$(img_ext "$tmp")"
@@ -229,6 +258,7 @@ grab_one() {                       # $1=path prefix; prints final path on succes
     echo "ERROR: endpoint returned non-image content (type=$CCE_CAM_TYPE, url=$ENDPOINT)." >&2
     return 2
   fi
+  rm -f "$hdr"
   mv "$tmp" "$prefix.$ext"
   printf '%s\n' "$prefix.$ext"
 }

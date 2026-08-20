@@ -40,6 +40,25 @@ XDG="${XDG_CONFIG_HOME:-$HOME/.config}"
 GLOBAL_CFG="$XDG/claude-code-eyes/config"
 LOCAL_CFG="./.cce.env"
 
+# --- CRLF guard --------------------------------------------------------------
+# A Windows-saved or autocrlf-converted snap.sh dies before running anything:
+#   snap.sh: line N: $'\r': command not found
+#   snap.sh: line N: set: pipefail: invalid option name
+# snap.sh cannot report this itself (bash is already dead), so check it here.
+crlf_check() {
+  local snap="${SELF_DIR:-.}/snap.sh" crs
+  [ -f "$snap" ] || return 0
+  crs="$(tr -cd '\r' < "$snap" | wc -c | tr -d ' ')"
+  [ "$crs" = "0" ] && return 0
+  echo "WARNING: $snap has CRLF (Windows) line endings -- $crs carriage returns." >&2
+  echo "  bash will fail on it with \"set: pipefail: invalid option name\" before it" >&2
+  echo "  ever reaches your camera. Fix it with either of:" >&2
+  echo "      perl -pi -e 's/\\r\$//' \"$snap\"" >&2
+  echo "      sed -i'' -e 's/\\r\$//' \"$snap\"" >&2
+  echo "  Then re-clone with .gitattributes present, or set: git config core.autocrlf input" >&2
+  return 1
+}
+
 # --- probe one URL: 0 if it returns a JPEG/PNG -------------------------------
 is_image_url() {                   # $1=url  $2=auth(optional)  $3=connect-timeout
   local u="$1" a="${2:-}" ct="${3:-2}" tmp sig args
@@ -148,6 +167,7 @@ write_config() {                   # $1=type $2=url $3=auth $4=target
 }
 
 # --- actions -----------------------------------------------------------------
+crlf_check || true                 # warn loudly, but never block the user
 if [ "$ACTION" = "show" ]; then
   echo "global config: $GLOBAL_CFG $( [ -f "$GLOBAL_CFG" ] && echo '(exists)' || echo '(not set)')"
   echo "local  config: $LOCAL_CFG $( [ -f "$LOCAL_CFG" ] && echo '(exists)' || echo '(not set)')"
