@@ -33,6 +33,14 @@
 
 set -euo pipefail
 
+# Absolute path to this script. The sandbox advice below has to name the command
+# the way it is ACTUALLY invoked: Claude Code matches excludedCommands with
+#   prefix: cmd === entry || cmd.startsWith(entry + " ")      exact: cmd === entry
+# so a bare "bash snap.sh" never matches "bash /path/to/snap.sh". Using the
+# absolute path as a prefix also covers watch mode ("... snap.sh 3 2").
+SELF_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)"
+if [ -n "$SELF_DIR" ]; then SELF="$SELF_DIR/$(basename "$0")"; else SELF="$0"; fi
+
 # The security boundary: config files may set ONLY these keys. This allowlist is
 # load-bearing -- it is checked below BEFORE the value ever reaches eval/printf,
 # so a .cce.env cannot inject arbitrary variables (and cannot execute code, since
@@ -151,9 +159,12 @@ sandbox_fix() {                    # $1=host:port -- print the remedy that actua
   if is_private_host "$hp"; then
     echo "  $hp is a private/LAN address. The sandbox blocks those below the proxy, and" >&2
     echo "  sandbox.network.allowedDomains cannot admit them (it requires public domains)." >&2
-    echo "  Fix: let the capture run outside the sandbox. In ~/.claude/settings.json:" >&2
-    echo "      { \"sandbox\": { \"excludedCommands\": [\"bash snap.sh\"] } }" >&2
-    echo "  Match how you invoke it; use the full path if you call snap.sh by path." >&2
+    echo "  Quickest: if Claude offers to retry the command outside the sandbox, approve it" >&2
+    echo "  -- that captures the frame with no config change at all." >&2
+    echo "  Permanent fix, in ~/.claude/settings.json:" >&2
+    echo "      { \"sandbox\": { \"excludedCommands\": [\"bash $SELF\"] } }" >&2
+    echo "  The path must match how it is invoked (matching is exact/prefix, not fuzzy);" >&2
+    echo "  as a prefix this entry also covers watch mode." >&2
   else
     echo "  Fix: allow-list the camera in ~/.claude/settings.json, then restart Claude Code:" >&2
     echo "      { \"sandbox\": { \"network\": { \"allowedDomains\": [\"$hp\"] } } }" >&2

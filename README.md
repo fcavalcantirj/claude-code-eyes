@@ -224,14 +224,28 @@ address, and the two cases need *different* fixes (measured on Claude Code 2.1.2
 | Private / LAN (`192.168.x`, `10.x`, `172.16-31.x`, `localhost`, `*.local`) | Below the proxy — the connection just fails, with no HTTP status | `sandbox.excludedCommands` |
 | Public host or public IP | The proxy answers `403` | `sandbox.network.allowedDomains` |
 
-**Almost every camera is on your LAN**, so this is usually the one you want —
-it keeps the sandbox on for everything else and runs only the capture outside it:
+**Almost every camera is on your LAN**, so this is usually the one you want.
+
+The quickest unblock needs no config at all: when the capture fails under the
+sandbox, Claude offers to **rerun the command outside the sandbox** — approve
+that and the frame is captured. For a permanent fix, exclude the capture command
+so the sandbox stays on for everything else:
 
 ```json
-{ "sandbox": { "excludedCommands": ["bash snap.sh"] } }
+{ "sandbox": { "excludedCommands": ["bash /Users/me/.claude/skills/claude-code-eyes/snap.sh"] } }
 ```
 
-Match how you actually invoke it — use the full path if you call `snap.sh` by path.
+Use **your** path — `snap.sh` prints the exact line for you on failure, already
+filled in. It must be the path you actually invoke, because entries are matched
+exactly or by prefix, never fuzzily:
+
+```js
+prefix: cmd === entry || cmd.startsWith(entry + " ")
+exact:  cmd === entry
+```
+
+A bare `"bash snap.sh"` therefore never matches `bash /path/to/snap.sh`. As a
+prefix, the absolute entry also covers watch mode (`snap.sh 3 2`).
 
 `sandbox.network.allowedDomains` does **not** work for a LAN camera: private
 ranges are rejected from the domain lists, which require public domain names.

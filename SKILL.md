@@ -21,9 +21,10 @@ code *should* produce.
 If a capture fails, read the error before retrying — it names the actual cause
 and the fix. One case is worth knowing: Claude Code runs Bash in a sandbox that
 blocks LAN addresses, so a camera your own terminal reaches fine can be
-unreachable here. The fix is `{ "sandbox": { "excludedCommands": ["bash snap.sh"] } }`
-in `~/.claude/settings.json` (the network allowlist does *not* cover private
-addresses). Frames are written under `./.claude-code-eyes/` in the working
+unreachable here. `snap.sh` detects that and prints the fix already filled in —
+either approve Claude's offer to rerun the command outside the sandbox, or add the
+printed `sandbox.excludedCommands` entry to `~/.claude/settings.json` (the network
+allowlist does *not* cover private addresses). Frames are written under `./.claude-code-eyes/` in the working
 directory, not `$TMPDIR`, because sandboxed commands and the Read tool resolve
 `$TMPDIR` differently. See the README's Troubleshooting section.
 

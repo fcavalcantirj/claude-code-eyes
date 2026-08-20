@@ -16,6 +16,11 @@
 # Writes the same config snap.sh reads; contains no secrets beyond what you provide.
 set -euo pipefail
 
+# Absolute path to the snap.sh sitting beside this script -- excludedCommands is
+# matched exact/prefix, so the advice must name the real invocation, not "snap.sh".
+SELF_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)"
+SNAP_PATH="${SELF_DIR:-.}/snap.sh"
+
 TYPE=""; URL=""; AUTH=""; TARGET="global"; ACTION="setup"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -88,11 +93,13 @@ sandbox_hint() {                   # $1=endpoint
   echo "own terminal can, that is why. Add to ~/.claude/settings.json, then restart:"
   echo
   if is_private_host "$hp"; then
-    echo "    { \"sandbox\": { \"excludedCommands\": [\"bash snap.sh\"] } }"
+    echo "    { \"sandbox\": { \"excludedCommands\": [\"bash $SNAP_PATH\"] } }"
     echo
     echo "$hp is a private/LAN address; the network allowlist cannot admit those"
     echo "(it requires public domain names), so the capture must run outside the sandbox."
-    echo "Match how you invoke it -- use the full path if you call snap.sh by path."
+    echo "The path must match how it is invoked -- matching is exact/prefix, not fuzzy."
+    echo "You can also just approve Claude's offer to retry the command outside the"
+    echo "sandbox; that works with no config change."
   else
     echo "    { \"sandbox\": { \"network\": { \"allowedDomains\": [\"$hp\"] } } }"
     echo
