@@ -5,7 +5,8 @@
 *.token
 secrets*
 
-# Captured frames (snap.sh writes to $TMPDIR/claude-code-eyes, but guard anyway)
+# Captured frames (snap.sh writes to ./.claude-code-eyes)
+.claude-code-eyes/
 frame-*.jpg
 frame-*.jpeg
 frame-*.png
@@ -13,3 +14,7 @@ frames/
 
 # OS / editor cruft
 .DS_Store
+
+# Local launch / planning docs — not part of the public skill
+LAUNCH.md
+handovers/

@@ -18,6 +18,15 @@ code *should* produce.
 3. Answer from the frame. Reference positions concretely: "the red wire on the
    left rail, third hole down", not "a wire near the top".
 
+If a capture fails, read the error before retrying — it names the actual cause
+and the fix. One case is worth knowing: Claude Code runs Bash in a sandbox that
+blocks LAN addresses, so a camera your own terminal reaches fine can be
+unreachable here. The fix is `{ "sandbox": { "excludedCommands": ["bash snap.sh"] } }`
+in `~/.claude/settings.json` (the network allowlist does *not* cover private
+addresses). Frames are written under `./.claude-code-eyes/` in the working
+directory, not `$TMPDIR`, because sandboxed commands and the Read tool resolve
+`$TMPDIR` differently. See the README's Troubleshooting section.
+
 For **"watch this"** / an action in progress: `bash <path-to-skill>/snap.sh 3 2`
 (3 frames, 2 s apart), then compare the frames and narrate what changed. Longer
 processes: raise the count/interval.

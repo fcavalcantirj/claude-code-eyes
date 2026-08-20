@@ -16,6 +16,13 @@
 #   CCE_CAM_URL    camera URL (meaning depends on CCE_CAM_TYPE)
 #   CCE_CAM_AUTH   optional HTTP basic auth "user:pass"
 #   CCE_CAM_TYPE   ipwebcam | camera-streamer | url   (default: url)
+#   CCE_OUT_DIR    where frames are written (default: ./.claude-code-eyes)
+#
+# Frames go under the WORKING DIRECTORY, not $TMPDIR, on purpose: Claude Code's
+# Bash sandbox gives sandboxed commands a different $TMPDIR than the (unsandboxed)
+# Read tool sees, so a $TMPDIR path printed here can be unreadable there. The
+# working directory is the one location both agree on.
+# See https://code.claude.com/docs/en/sandboxing
 #
 # Backends:
 #   ipwebcam         GET  $CCE_CAM_URL/shot.jpg   (Android "IP Webcam" app)
@@ -30,7 +37,7 @@ set -euo pipefail
 # load-bearing -- it is checked below BEFORE the value ever reaches eval/printf,
 # so a .cce.env cannot inject arbitrary variables (and cannot execute code, since
 # the loader never `source`s the file). Do not move or remove this check.
-CCE_KEYS="CCE_CAM_URL CCE_CAM_AUTH CCE_CAM_TYPE"
+CCE_KEYS="CCE_CAM_URL CCE_CAM_AUTH CCE_CAM_TYPE CCE_OUT_DIR"
 
 # precedence-respecting config loader (bash 3.2 safe; no `source`, no code exec)
 load_config_file() {
@@ -88,7 +95,7 @@ case "$COUNT"    in ''|*[!0-9]*) echo "ERROR: count must be a positive integer" 
 case "$INTERVAL" in ''|*[!0-9]*) echo "ERROR: interval must be an integer (seconds)" >&2; exit 2 ;; esac
 [ "$COUNT" -ge 1 ] || { echo "ERROR: count must be >= 1" >&2; exit 2; }
 
-OUT_DIR="${TMPDIR:-/tmp}/claude-code-eyes"; mkdir -p "$OUT_DIR"
+OUT_DIR="${CCE_OUT_DIR:-$PWD/.claude-code-eyes}"; mkdir -p "$OUT_DIR"
 
 # empty-array-under-set-u guard (bash 3.2 safe) -- see AUTH_ARGS expansion below
 AUTH_ARGS=()
@@ -105,10 +112,106 @@ img_ext() {                        # echoes jpg|png, or "" if not an image
   esac
 }
 
+RETRIES=3                          # phones (Android IP Webcam) refuse the first
+                                   # connection while dozing; retry before giving up
+host_port() {                      # "http://u:p@1.2.3.4:8080/shot.jpg" -> "1.2.3.4:8080"
+  local u="${1#*://}"
+  u="${u##*@}"
+  printf '%s\n' "${u%%/*}"
+}
+
+proxy_set() {                      # a proxy is configured (the sandbox always sets one)
+  [ -n "${HTTP_PROXY:-}${HTTPS_PROXY:-}${ALL_PROXY:-}" ] && return 0
+  [ -n "${http_proxy:-}${https_proxy:-}${all_proxy:-}" ] && return 0
+  return 1
+}
+
+# Why the HTTP status and not just "a proxy is set": inside Claude Code's sandbox a
+# proxy is ALWAYS set, so its presence says nothing about why a request failed.
+# Measured under a sandboxed session (Claude Code 2.1.236):
+#   * a PUBLIC destination that is not allow-listed is refused by the proxy -> HTTP 403
+#   * a PRIVATE/LAN destination is blocked below the proxy -> connection failure, no status
+#   * an allow-listed camera that is merely asleep ALSO gives a connection failure
+# So a connection failure is ambiguous and must never be reported as a sandbox verdict.
+# The two blocks also need DIFFERENT fixes: sandbox.network.allowedDomains rejects
+# private ranges outright ("Public domain names are required"), so a LAN camera can
+# only be reached by excluding the capture command from the sandbox.
+is_private_host() {                # $1=host[:port] -> 0 if RFC1918 / loopback / .local
+  local h="${1%%:*}"
+  case "$h" in
+    localhost|*.local|*.internal|*.localdomain) return 0 ;;
+    10.*|127.*|169.254.*|192.168.*)             return 0 ;;
+    172.1[6-9].*|172.2[0-9].*|172.3[01].*)      return 0 ;;
+  esac
+  return 1
+}
+
+sandbox_fix() {                    # $1=host:port -- print the remedy that actually works
+  local hp="$1"
+  if is_private_host "$hp"; then
+    echo "  $hp is a private/LAN address. The sandbox blocks those below the proxy, and" >&2
+    echo "  sandbox.network.allowedDomains cannot admit them (it requires public domains)." >&2
+    echo "  Fix: let the capture run outside the sandbox. In ~/.claude/settings.json:" >&2
+    echo "      { \"sandbox\": { \"excludedCommands\": [\"bash snap.sh\"] } }" >&2
+    echo "  Match how you invoke it; use the full path if you call snap.sh by path." >&2
+  else
+    echo "  Fix: allow-list the camera in ~/.claude/settings.json, then restart Claude Code:" >&2
+    echo "      { \"sandbox\": { \"network\": { \"allowedDomains\": [\"$hp\"] } } }" >&2
+    echo "  IPs must be listed EXACTLY -- wildcards never match an IP." >&2
+  fi
+  echo "  Inspect the active policy with /sandbox. https://code.claude.com/docs/en/sandboxing" >&2
+}
+
+diagnose() {                       # $1=curl exit status  $2=http status ("000" if none)
+  local rc="$1" code="$2" HP
+  HP="$(host_port "$ENDPOINT")"
+  if [ "$code" = "403" ] && proxy_set; then
+    echo "ERROR: request to $HP was refused with 403 by the proxy in front of this shell," >&2
+    echo "  which is how the Claude Code Bash sandbox blocks an address it does not allow." >&2
+    sandbox_fix "$HP"
+    echo "  (If $HP is already allowed, the camera itself returned the 403.)" >&2
+  elif [ "$code" = "401" ]; then
+    echo "ERROR: $HP returned 401 Unauthorized." >&2
+    echo "  The camera wants HTTP basic auth. Set CCE_CAM_AUTH=user:pass" >&2
+    echo "  (currently $([ -n "${CCE_CAM_AUTH:-}" ] && echo set || echo unset))." >&2
+  elif [ "$code" != "000" ] && [ "$code" != "200" ]; then
+    echo "ERROR: $HP returned HTTP $code (type=$CCE_CAM_TYPE, url=$ENDPOINT)." >&2
+    echo "  The host answered, so it is reachable -- check the path for this backend." >&2
+  else
+    echo "ERROR: camera not reachable (type=$CCE_CAM_TYPE, url=$ENDPOINT, auth=$([ -n "${CCE_CAM_AUTH:-}" ] && echo set || echo none))." >&2
+    echo "  Tried $RETRIES times, curl exit $rc -- no HTTP response at all." >&2
+    echo "  Likely: camera app/server not running, phone asleep, IP or port changed," >&2
+    echo "  or not on the same network." >&2
+    if proxy_set; then
+      echo "  This shell is sandboxed, which looks identical at this layer. If your own" >&2
+      echo "  terminal CAN reach $HP but Claude cannot, it is the sandbox:" >&2
+      sandbox_fix "$HP"
+    fi
+  fi
+}
+
+# grab_one() runs inside a command substitution (a subshell), so it cannot export
+# state back to the caller -- it prints its own diagnosis to stderr (which is NOT
+# captured) and returns non-zero. Only the captured path goes to stdout.
 grab_one() {                       # $1=path prefix; prints final path on success
-  local prefix="$1" tmp="$1.part" ext
-  curl -sf --connect-timeout 4 --max-time 15 \
-       ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$ENDPOINT" -o "$tmp" || return 1
+  local prefix="$1" tmp="$1.part" ext attempt=1 code rc
+  while :; do
+    # no -f: let curl report the status instead of collapsing every 4xx into exit 22
+    if code="$(curl -s -o "$tmp" -w '%{http_code}' --connect-timeout 4 --max-time 15 \
+                    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$ENDPOINT" 2>/dev/null)"; then
+      rc=0
+    else
+      rc=$?; code="000"
+    fi
+    [ "$rc" -eq 0 ] && [ "$code" = "200" ] && break
+    # only a connection-level failure is worth retrying; an HTTP status is an answer
+    if [ "$rc" -ne 0 ] && [ "$attempt" -lt "$RETRIES" ]; then
+      attempt=$((attempt + 1)); sleep 1; continue
+    fi
+    rm -f "$tmp"
+    diagnose "$rc" "$code"
+    return 1
+  done
   ext="$(img_ext "$tmp")"
   if [ -z "$ext" ]; then
     rm -f "$tmp"
@@ -125,12 +228,7 @@ while [ "$i" -le "$COUNT" ]; do
   if out="$(grab_one "$prefix")"; then
     printf '%s\n' "$out"
   else
-    rc=$?
-    if [ "$rc" -ne 2 ]; then       # rc 2 already printed its own message
-      echo "ERROR: camera not reachable (type=$CCE_CAM_TYPE, url=$ENDPOINT, auth=$([ -n "${CCE_CAM_AUTH:-}" ] && echo set || echo none))." >&2
-      echo "  Likely: camera app/server not running, IP or port changed, or not on the same network." >&2
-    fi
-    exit 1
+    exit 1                         # grab_one already explained the failure on stderr
   fi
   [ "$i" -lt "$COUNT" ] && sleep "$INTERVAL"
   i=$((i + 1))

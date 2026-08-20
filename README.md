@@ -192,14 +192,82 @@ CCE_CAM_URL=http://192.168.0.42:8080
 | `CCE_CAM_URL` | Camera URL (interpreted per `CCE_CAM_TYPE`) |
 | `CCE_CAM_AUTH` | Optional HTTP basic auth `user:pass` |
 | `CCE_CAM_TYPE` | `ipwebcam` \| `camera-streamer` \| `url` (default `url`) |
+| `CCE_OUT_DIR` | Where frames are written (default `./.claude-code-eyes`) |
 
 ### Watch mode
 ```bash
 bash snap.sh 3 2     # 3 frames, 2 seconds apart — for "watch this"
 ```
 
-Captured frames are written under `${TMPDIR:-/tmp}/claude-code-eyes/` and their
-paths are printed one per line.
+Captured frames are written under `./.claude-code-eyes/` (override with
+`CCE_OUT_DIR`) and their paths are printed one per line. They land in the working
+directory, not `$TMPDIR`, on purpose — see the sandbox note below.
+
+---
+
+## Troubleshooting: the camera stopped working after a Claude Code update
+
+Claude Code runs Bash commands inside a [sandbox](https://code.claude.com/docs/en/sandboxing).
+It changed two things this skill depends on. Both are handled as of the current
+version, but if you are on an older copy — or you see the symptoms below — this is why.
+
+### 1. The sandbox blocks your camera's address
+
+**Symptom:** Claude reports the camera as unreachable, but the exact same
+`curl` works in your own terminal.
+
+The sandbox pre-allows **no** network destinations. How it blocks depends on the
+address, and the two cases need *different* fixes (measured on Claude Code 2.1.236):
+
+| Camera address | How it's blocked | Fix |
+|---|---|---|
+| Private / LAN (`192.168.x`, `10.x`, `172.16-31.x`, `localhost`, `*.local`) | Below the proxy — the connection just fails, with no HTTP status | `sandbox.excludedCommands` |
+| Public host or public IP | The proxy answers `403` | `sandbox.network.allowedDomains` |
+
+**Almost every camera is on your LAN**, so this is usually the one you want —
+it keeps the sandbox on for everything else and runs only the capture outside it:
+
+```json
+{ "sandbox": { "excludedCommands": ["bash snap.sh"] } }
+```
+
+Match how you actually invoke it — use the full path if you call `snap.sh` by path.
+
+`sandbox.network.allowedDomains` does **not** work for a LAN camera: private
+ranges are rejected from the domain lists, which require public domain names.
+For a camera on a public host, it is the right fix:
+
+```json
+{ "sandbox": { "network": { "allowedDomains": ["cam.example.com"] } } }
+```
+
+IPs must be listed exactly — wildcards never match an IP.
+
+Put either in `~/.claude/settings.json` and restart Claude Code. `setup.sh`
+prints the correct one for your camera, and `snap.sh` prints it on failure. Run
+`/sandbox` to inspect the active policy.
+
+> A blocked LAN camera and a sleeping camera look **identical** at the network
+> layer — both are just a failed connection. `snap.sh` will not claim the sandbox
+> is at fault when it cannot tell; it reports the connection failure and notes the
+> sandbox as a possibility. The deciding test: if your own terminal can reach the
+> camera and Claude cannot, it is the sandbox.
+
+### 2. Frames written to `$TMPDIR` were unreadable
+
+**Symptom:** `snap.sh` prints a path, but `Read` cannot open it.
+
+Sandboxed commands get a *different* `$TMPDIR` than the Read tool sees, so a
+`$TMPDIR` path is not a shared address between them. `snap.sh` therefore writes
+frames under the working directory (`./.claude-code-eyes/`), which both agree on.
+Add that directory to your project's `.gitignore`.
+
+### 3. Your phone was simply asleep
+
+**Symptom:** the first capture fails, a retry moments later succeeds.
+
+Android dozes the Wi-Fi radio, so the IP Webcam server refuses the first
+connection while the phone wakes. `snap.sh` retries 3 times before giving up.
 
 ---
 

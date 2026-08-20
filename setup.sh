@@ -59,6 +59,48 @@ endpoint_for() {                   # $1=type $2=url
   esac
 }
 
+# --- host:port of a URL, mirroring snap.sh -----------------------------------
+host_port() {                      # "http://u:p@1.2.3.4:8080/shot.jpg" -> "1.2.3.4:8080"
+  local u="${1#*://}"
+  u="${u##*@}"
+  printf '%s\n' "${u%%/*}"
+}
+
+# --- Claude Code Bash sandbox ---------------------------------------------------
+# Verified against Claude Code 2.1.236: the sandbox blocks private/LAN addresses
+# below its proxy, and sandbox.network.allowedDomains cannot admit them ("Public
+# domain names are required"). A LAN camera therefore needs the capture command
+# excluded from the sandbox; only a public host is fixed by the allowlist.
+is_private_host() {                # $1=host[:port]
+  local h="${1%%:*}"
+  case "$h" in
+    localhost|*.local|*.internal|*.localdomain) return 0 ;;
+    10.*|127.*|169.254.*|192.168.*)             return 0 ;;
+    172.1[6-9].*|172.2[0-9].*|172.3[01].*)      return 0 ;;
+  esac
+  return 1
+}
+
+sandbox_hint() {                   # $1=endpoint
+  local hp; hp="$(host_port "$1")"
+  echo
+  echo "Claude Code runs Bash in a sandbox. If Claude cannot reach the camera but your"
+  echo "own terminal can, that is why. Add to ~/.claude/settings.json, then restart:"
+  echo
+  if is_private_host "$hp"; then
+    echo "    { \"sandbox\": { \"excludedCommands\": [\"bash snap.sh\"] } }"
+    echo
+    echo "$hp is a private/LAN address; the network allowlist cannot admit those"
+    echo "(it requires public domain names), so the capture must run outside the sandbox."
+    echo "Match how you invoke it -- use the full path if you call snap.sh by path."
+  else
+    echo "    { \"sandbox\": { \"network\": { \"allowedDomains\": [\"$hp\"] } } }"
+    echo
+    echo "IPs must be listed EXACTLY -- wildcards never match an IP."
+  fi
+  echo "Inspect the active policy with /sandbox. https://code.claude.com/docs/en/sandboxing"
+}
+
 # --- local /24 prefix (best effort) ------------------------------------------
 lan_prefix() {                     # echoes e.g. 192.168.0
   local ip=""
@@ -154,3 +196,4 @@ else
   echo "  The config is saved and correct; the camera just isn't reachable this moment"
   echo "  (start the phone's IP Webcam server / check the IP). It'll work once it's up."
 fi
+sandbox_hint "$ep"
