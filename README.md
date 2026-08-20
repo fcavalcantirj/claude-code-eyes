@@ -21,6 +21,14 @@ edit, reflash, and look again until the real thing is right.
 Too small to read? It zooms in and looks again instead of guessing, then puts the
 camera back where it found it. Chip markings, resistor bands, silkscreen, fine print.
 
+## Releases
+
+| Version | |
+|---|---|
+| **[v1.1.1](https://github.com/fcavalcantirj/claude-code-eyes/releases/tag/v1.1.1)** | LAN cameras bypass the proxy |
+| **[v1.1.0](https://github.com/fcavalcantirj/claude-code-eyes/releases/tag/v1.1.0)** | Claude can zoom the lens |
+| **[v1.0.0](https://github.com/fcavalcantirj/claude-code-eyes/releases/tag/v1.0.0)** | First public release — Claude sees through your camera |
+
 ## See it in action
 
 <p align="center">
@@ -389,7 +397,14 @@ That covers the common corporate-proxy case. Two traps remain worth knowing:
 **What works instead:** fetch the snapshot from a browser running on the LAN host
 (e.g. Claude in Chrome opening `http://<camera-ip>:8080/shot.jpg`), which bypasses
 the session's egress entirely. Confirmed in the field: full page text and small
-print were legible that way.
+print were legible that way. It is also, in the words of the person who found it,
+"SUPER clunky" — so it is a workaround, not an answer.
+
+📌 Tracked in **[issue #2](https://github.com/fcavalcantirj/claude-code-eyes/issues/2)**,
+with a one-command triage that tells this apart from the two fixable causes above.
+Running into it? Please add your setup to the
+**[cloud-session discussion](https://github.com/fcavalcantirj/claude-code-eyes/discussions/3)** —
+more datapoints make the upstream case stronger.
 
 ### 2. Frames written to `$TMPDIR` were unreadable
 
