@@ -17,6 +17,10 @@ the wrong hole, a number clipped at the edge of an LCD. `claude-code-eyes` grabs
 current camera frame so Claude can read it like any other file — then **act on it**:
 edit, reflash, and look again until the real thing is right.
 
+🔍 **New in v1.1 — Claude can [zoom the lens](#zoom-in--read-whats-too-small-to-see).**
+Too small to read? It zooms in and looks again instead of guessing, then puts the
+camera back where it found it. Chip markings, resistor bands, silkscreen, fine print.
+
 ## See it in action
 
 <p align="center">
@@ -114,11 +118,28 @@ the screen should show**; report the mismatch. It has a small case library baked
 into the skill: font coverage / dropped characters, text-vs-graphic collisions,
 clipping at a panel edge, and stale-vs-live renders.
 
+### Zoom in — read what's too small to see
+Claude drives the lens itself. When a marking, band, or line of text won't resolve,
+it zooms and takes another look rather than reporting a guess or "the image is too
+blurry":
+
+```bash
+bash snap.sh --zoom 5      # 5x, capture, then restore the previous zoom
+bash snap.sh --focus       # soft rather than small? autofocus, then capture
+```
+
+`--zoom` is a plain magnification from **1 to 10**, snapped to a step your camera
+actually supports, and the previous level is **restored afterwards** — so a zoomed
+look never silently changes what the next capture sees. Needs
+`CCE_CAM_TYPE=ipwebcam`; other backends say so and still capture. [Full
+details ↓](#zoom-and-focus)
+
 ### Wiring-mentor — a second set of eyes before power-on
 Ask Claude to check a build's wiring against its wiring table before you apply
 power: it calls out mismatches, verifies polarity and voltage rails (no 5 V on a
 3.3 V-only pin), and — importantly — **refuses to guess a pin it can't read**,
-asking you to aim the camera closer instead.
+zooming in for a better look and asking you to aim the camera closer if that still
+isn't enough.
 
 ---
 
