@@ -138,6 +138,7 @@ OUT_DIR="${CCE_OUT_DIR:-$PWD/.claude-code-eyes}"; mkdir -p "$OUT_DIR"
 # empty-array-under-set-u guard (bash 3.2 safe) -- see AUTH_ARGS expansion below
 AUTH_ARGS=()
 [ -n "${CCE_CAM_AUTH:-}" ] && AUTH_ARGS=(-u "$CCE_CAM_AUTH")
+NOPROXY_ARGS=()                    # populated below, once the host is classified
 
 # --- camera control ----------------------------------------------------------
 # Verified against IP Webcam on a real phone, 2026-08-20:
@@ -149,6 +150,7 @@ AUTH_ARGS=()
 # Note: pydroid-ipcam documents /settings/ptz?zoom=N -- that 404s on the device.
 ctrl_get() {                       # $1=path -> body on stdout, non-zero if unreachable
   curl -sf --connect-timeout 4 --max-time 10 \
+       ${NOPROXY_ARGS[@]+"${NOPROXY_ARGS[@]}"} \
        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$base$1" 2>/dev/null
 }
 
@@ -312,6 +314,7 @@ grab_one() {                       # $1=path prefix; prints final path on succes
   while :; do
     # no -f: let curl report the status instead of collapsing every 4xx into exit 22
     if code="$(curl -s -o "$tmp" -D "$hdr" -w '%{http_code}' --connect-timeout 4 --max-time 15 \
+                    ${NOPROXY_ARGS[@]+"${NOPROXY_ARGS[@]}"} \
                     ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$ENDPOINT" 2>/dev/null)"; then
       rc=0
     else
@@ -337,6 +340,17 @@ grab_one() {                       # $1=path prefix; prints final path on succes
   mv "$tmp" "$prefix.$ext"
   printf '%s\n' "$prefix.$ext"
 }
+
+# A camera on the LAN is never reachable *through* a proxy, so don't send it there.
+# Relying on no_proxy is not enough: CIDR entries like 192.168.0.0/16 need curl 7.86+
+# and are silently ignored by older builds (seen in the field 2026-08-20). Passing
+# --noproxy for this host works on every version. Public hosts keep using the proxy,
+# since for them it may be the only route out.
+CAM_HOST="$(host_port "$ENDPOINT")"
+CAM_HOST="${CAM_HOST%%:*}"
+if is_private_host "$CAM_HOST"; then
+  NOPROXY_ARGS=(--noproxy "$CAM_HOST")
+fi
 
 if [ -n "$ZOOM" ] || [ "$DO_FOCUS" -eq 1 ]; then
   if [ "$CCE_CAM_TYPE" != "ipwebcam" ]; then

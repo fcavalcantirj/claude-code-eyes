@@ -373,11 +373,18 @@ Bash sandbox, and no local settings change opens it — the allowlist belongs to
 bridge, not to you. `snap.sh` prints whatever the proxy says about itself so you
 can tell which system refused you.
 
-Two traps worth knowing:
+**`snap.sh` now bypasses the proxy for LAN cameras automatically** — it passes
+`--noproxy <camera-host>` whenever the camera is on a private address, so a proxy
+that could never serve a LAN address is simply not consulted. Public hosts keep
+using the proxy, since for them it may be the only route out.
 
-- **`no_proxy` does not accept CIDR.** `no_proxy=192.168.0.0/16` looks right and
-  silently does nothing — curl does not CIDR-match it.
-- Bypassing the proxy doesn't help if the container has no LAN route at all.
+That covers the common corporate-proxy case. Two traps remain worth knowing:
+
+- **`no_proxy` CIDR entries need curl 7.86+.** `no_proxy=192.168.0.0/16` looks
+  right and is *silently ignored* by older builds — which is why the explicit
+  `--noproxy` above is used instead of relying on it.
+- **Bypassing the proxy doesn't help if the container has no LAN route at all.**
+  Nothing in a script can fix that; use the browser route below.
 
 **What works instead:** fetch the snapshot from a browser running on the LAN host
 (e.g. Claude in Chrome opening `http://<camera-ip>:8080/shot.jpg`), which bypasses
