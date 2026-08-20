@@ -194,6 +194,55 @@ CCE_CAM_URL=http://192.168.0.42:8080
 | `CCE_CAM_TYPE` | `ipwebcam` \| `camera-streamer` \| `url` (default `url`) |
 | `CCE_OUT_DIR` | Where frames are written (default `./.claude-code-eyes`) |
 
+### Zoom and focus
+
+When you can't read a silkscreen label, a resistor band, or a chip marking, zoom
+in and look again instead of guessing:
+
+```bash
+bash snap.sh --zoom 4        # 4x, capture, then restore the previous zoom
+bash snap.sh --focus         # trigger autofocus, then capture
+bash snap.sh --zoom 6 3 2    # 6x + watch mode: 3 frames, 2s apart
+```
+
+`--zoom` takes a **magnification from 1 to 10**, not raw device units, and snaps
+to the nearest step the camera actually supports. The previous zoom is **restored
+after the capture** (including on Ctrl-C), so a zoomed shot never silently changes
+what the next one sees.
+
+Needs `CCE_CAM_TYPE=ipwebcam`. Other backends say so and still capture the frame.
+
+| Backend | Snapshot | Zoom | Focus |
+|---|---|---|---|
+| `ipwebcam` | yes | **yes** | **yes** |
+| `camera-streamer` | yes | no | no |
+| `url` | yes | no | no |
+
+<details>
+<summary>How it works on the device — verified 2026-08-20, and two traps</summary>
+
+| Purpose | Endpoint | Notes |
+|---|---|---|
+| Set zoom | `/settings/zoom?set=V` | **absolute**; V must be an allowed step, `100`=1x … `1000`=max |
+| Set zoom | `/ptz?zoom=P` | **percent 0–100** of the range — *not* an absolute value |
+| Focus | `/focus`, `/nofocus` | momentary trigger; `focusmode` is unchanged |
+| Capabilities | `/status.json?show_avail=1` | the device's own allowed zoom steps |
+
+Success is signalled by the response **body containing `Ok`** — the status code is
+`200` either way, so checking the code alone is not enough.
+
+**Trap 1: `/ptz?zoom=` is a percentage.** `/ptz?zoom=200` does not mean 2x — it
+clamps to maximum zoom. This skill uses `/settings/zoom?set=` instead.
+
+**Trap 2: `curvals.zoom` lags several seconds** behind a change. Code that reads it
+straight back sees the *old* value, so restoring from an immediate read restores the
+wrong level. `snap.sh` polls until the value settles.
+
+Note: `pydroid-ipcam` documents zoom as `/settings/ptz?zoom=N`; that path returns
+**404** on the device tested here.
+
+</details>
+
 ### Watch mode
 ```bash
 bash snap.sh 3 2     # 3 frames, 2 seconds apart — for "watch this"

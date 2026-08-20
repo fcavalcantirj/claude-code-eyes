@@ -28,6 +28,20 @@ allowlist does *not* cover private addresses). Frames are written under `./.clau
 directory, not `$TMPDIR`, because sandboxed commands and the Read tool resolve
 `$TMPDIR` differently. See the README's Troubleshooting section.
 
+**When you cannot read something, zoom instead of guessing.** If a label, marking,
+or band is too small to resolve, do not report a guess and do not say the image is
+too blurry — take another look:
+
+```bash
+bash <path-to-skill>/snap.sh --zoom 5    # then Read the new frame
+bash <path-to-skill>/snap.sh --focus     # if it is soft rather than small
+```
+
+`--zoom` is a magnification from 1 to 10 and the previous zoom is restored
+afterwards, so it is safe to reach for. Requires `CCE_CAM_TYPE=ipwebcam`; other
+backends say so and still capture. Escalate deliberately: 1x to frame the scene,
+then zoom to read the detail you actually need.
+
 For **"watch this"** / an action in progress: `bash <path-to-skill>/snap.sh 3 2`
 (3 frames, 2 s apart), then compare the frames and narrate what changed. Longer
 processes: raise the count/interval.

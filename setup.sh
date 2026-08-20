@@ -218,6 +218,16 @@ ep="$(endpoint_for "$TYPE" "$URL")"
 printf 'verifying %s ... ' "$ep"
 if is_image_url "$ep" "$AUTH" 3; then
   echo "OK -- got a live frame. You're set: ask Claude \"are you seeing this?\""
+  # report zoom/focus support, so the user knows whether --zoom is available
+  if [ "$TYPE" = "ipwebcam" ]; then
+    steps="$(curl -sf -m 6 ${AUTH:+-u "$AUTH"} "${URL%/}/status.json?show_avail=1" 2>/dev/null \
+             | grep -o '"zoom":\[[^]]*\]' | grep -o '[0-9][0-9]*' | wc -l | tr -d ' ')"
+    if [ -n "$steps" ] && [ "$steps" -gt 1 ]; then
+      echo "  zoom + focus available ($steps zoom steps): try  snap.sh --zoom 4  /  snap.sh --focus"
+    else
+      echo "  this camera reports no zoom steps; --zoom will capture at current settings"
+    fi
+  fi
 else
   echo "no frame right now."
   echo "  The config is saved and correct; the camera just isn't reachable this moment"

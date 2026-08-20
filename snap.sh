@@ -2,9 +2,14 @@
 # claude-code-eyes: grab current frame(s) from a snapshot-capable camera and
 # print the JPEG/PNG path(s), one per line, for Claude to Read.
 #
-# Usage: snap.sh [count] [interval_seconds]
-#   snap.sh        -> 1 frame now
-#   snap.sh 3 2    -> 3 frames, 2s apart (watch mode)
+# Usage: snap.sh [--zoom N] [--focus] [count] [interval_seconds]
+#   snap.sh              -> 1 frame now
+#   snap.sh 3 2          -> 3 frames, 2s apart (watch mode)
+#   snap.sh --zoom 4     -> zoom 4x, capture, then restore the previous zoom
+#   snap.sh --focus      -> trigger autofocus, then capture
+#
+# --zoom / --focus need CCE_CAM_TYPE=ipwebcam (Android "IP Webcam"). Other
+# backends say so and still capture. N is a magnification from 1 to 10.
 #
 # Config (highest precedence first):
 #   1. Environment variables already exported in the shell
@@ -98,6 +103,31 @@ case "$CCE_CAM_TYPE" in
   url)             ENDPOINT="$CCE_CAM_URL" ;;               # verbatim contract
 esac
 
+ZOOM=""; DO_FOCUS=0; POS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --zoom)  ZOOM="${2:-}"; shift 2 ;;
+    --focus) DO_FOCUS=1; shift ;;
+    --)      shift; break ;;
+    -*)      echo "ERROR: unknown option '$1' (valid: --zoom N, --focus)" >&2; exit 2 ;;
+    *)       POS[${#POS[@]}]="$1"; shift ;;
+  esac
+done
+set -- ${POS[@]+"${POS[@]}"}
+
+# --zoom takes a magnification (1..10), not raw device units. The device scale is
+# 100..1000 where 100 = 1x, so units = N*100, then snapped to an allowed step.
+ZOOM_UNITS=""
+if [ -n "$ZOOM" ]; then
+  case "$ZOOM" in
+    ''|*[!0-9.]*|*.*.*) echo "ERROR: --zoom takes a number from 1 to 10 (got '$ZOOM')" >&2; exit 2 ;;
+  esac
+  ZOOM_UNITS="$(awk -v z="$ZOOM" 'BEGIN{printf "%d", z*100}')"
+  if [ "$ZOOM_UNITS" -lt 100 ] || [ "$ZOOM_UNITS" -gt 1000 ]; then
+    echo "ERROR: --zoom must be between 1 and 10 (got '$ZOOM')" >&2; exit 2
+  fi
+fi
+
 COUNT="${1:-1}"; INTERVAL="${2:-2}"
 case "$COUNT"    in ''|*[!0-9]*) echo "ERROR: count must be a positive integer" >&2; exit 2 ;; esac
 case "$INTERVAL" in ''|*[!0-9]*) echo "ERROR: interval must be an integer (seconds)" >&2; exit 2 ;; esac
@@ -108,6 +138,51 @@ OUT_DIR="${CCE_OUT_DIR:-$PWD/.claude-code-eyes}"; mkdir -p "$OUT_DIR"
 # empty-array-under-set-u guard (bash 3.2 safe) -- see AUTH_ARGS expansion below
 AUTH_ARGS=()
 [ -n "${CCE_CAM_AUTH:-}" ] && AUTH_ARGS=(-u "$CCE_CAM_AUTH")
+
+# --- camera control ----------------------------------------------------------
+# Verified against IP Webcam on a real phone, 2026-08-20:
+#   /settings/zoom?set=V   absolute; V must be one of avail.zoom (100=1x .. 1000=max)
+#   /ptz?zoom=P            PERCENT 0..100, NOT absolute -- ptz?zoom=200 slams to max
+#   /focus /nofocus        momentary trigger; focusmode is unchanged
+#   success = the response BODY contains "Ok" (the status code is 200 either way)
+#   curvals.zoom LAGS the set by several seconds, so we poll instead of assuming
+# Note: pydroid-ipcam documents /settings/ptz?zoom=N -- that 404s on the device.
+ctrl_get() {                       # $1=path -> body on stdout, non-zero if unreachable
+  curl -sf --connect-timeout 4 --max-time 10 \
+       ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} "$base$1" 2>/dev/null
+}
+
+ctrl_ok() { ctrl_get "$1" | grep -q "Ok"; }
+
+zoom_now()   { ctrl_get "/status.json" | grep -o '"zoom":"[0-9]*"' | head -1 | grep -o '[0-9][0-9]*'; }
+zoom_avail() { ctrl_get "/status.json?show_avail=1" | grep -o '"zoom":\[[^]]*\]' | grep -o '[0-9][0-9]*'; }
+
+nearest_zoom() {                   # $1=target units -> closest allowed step
+  local t="$1" best="" bd=999999 v d
+  for v in $(zoom_avail); do
+    if [ "$t" -gt "$v" ]; then d=$((t - v)); else d=$((v - t)); fi
+    if [ "$d" -lt "$bd" ]; then bd="$d"; best="$v"; fi
+  done
+  printf '%s\n' "$best"
+}
+
+set_zoom() {                       # $1=units; waits out the status lag
+  local v="$1" i=0
+  ctrl_ok "/settings/zoom?set=$v" || return 1
+  while [ "$i" -lt 8 ]; do
+    [ "$(zoom_now)" = "$v" ] && return 0
+    sleep 1; i=$((i + 1))
+  done
+  return 0                         # applied; status just never caught up
+}
+
+ZOOM_ORIG=""
+restore_zoom() {                   # never leave the camera zoomed for the next capture
+  [ -n "$ZOOM_ORIG" ] || return 0
+  ctrl_get "/settings/zoom?set=$ZOOM_ORIG" >/dev/null 2>&1 || true
+  ZOOM_ORIG=""
+}
+trap restore_zoom EXIT INT TERM
 
 img_ext() {                        # echoes jpg|png, or "" if not an image
   local f="$1" sig
@@ -262,6 +337,31 @@ grab_one() {                       # $1=path prefix; prints final path on succes
   mv "$tmp" "$prefix.$ext"
   printf '%s\n' "$prefix.$ext"
 }
+
+if [ -n "$ZOOM" ] || [ "$DO_FOCUS" -eq 1 ]; then
+  if [ "$CCE_CAM_TYPE" != "ipwebcam" ]; then
+    echo "NOTE: zoom/focus control needs CCE_CAM_TYPE=ipwebcam (this is $CCE_CAM_TYPE)." >&2
+    echo "  Capturing at the camera's current settings instead." >&2
+  else
+    if [ "$DO_FOCUS" -eq 1 ]; then
+      if ctrl_ok "/focus"; then sleep 1; else echo "NOTE: this camera refused /focus; capturing anyway." >&2; fi
+    fi
+    if [ -n "$ZOOM" ]; then
+      target="$(nearest_zoom "$ZOOM_UNITS")"
+      if [ -z "$target" ]; then
+        echo "NOTE: this camera reports no zoom control; capturing at current settings." >&2
+      else
+        ZOOM_ORIG="$(zoom_now)"; [ -n "$ZOOM_ORIG" ] || ZOOM_ORIG=100
+        if set_zoom "$target"; then
+          echo "zoom ${ZOOM}x -> $target (was $ZOOM_ORIG); will restore after capture" >&2
+        else
+          echo "NOTE: this camera refused the zoom; capturing at current settings." >&2
+          ZOOM_ORIG=""
+        fi
+      fi
+    fi
+  fi
+fi
 
 i=1
 while [ "$i" -le "$COUNT" ]; do
