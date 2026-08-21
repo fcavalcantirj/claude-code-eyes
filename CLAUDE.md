@@ -42,6 +42,16 @@ exit 0).
 
 ## How to test (everything must pass under bash 3.2)
 
+**There is a real suite now — use it before hand-rolling anything:**
+
+```bash
+bash tests/run_tests.sh      # 51 checks, starts/stops its own fixtures
+```
+
+See `tests/README.md`. The manual recipe below is still the way to check something
+the suite doesn't cover yet; add a case for whatever you find.
+
+
 No real camera is needed — serve a JPEG over HTTP and point the script at it:
 
 ```bash
